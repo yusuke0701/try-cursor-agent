@@ -10,6 +10,7 @@ type TodoListProps = {
 export default function TodoList({ initialTodos }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [newTodoTitle, setNewTodoTitle] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +31,20 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     setTodos(todos.map(todo =>
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
     ));
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteConfirmId) return;
+    setTodos(todos.filter(todo => todo.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmId(null);
   };
 
   return (
@@ -69,9 +84,39 @@ export default function TodoList({ initialTodos }: TodoListProps) {
             <span className={`flex-1 ${todo.completed ? 'line-through text-gray-500' : ''}`}>
               {todo.title}
             </span>
+            <button
+              onClick={() => handleDeleteClick(todo.id)}
+              className="px-3 py-1 text-sm text-red-600 hover:text-red-800 focus:outline-none"
+            >
+              削除
+            </button>
           </div>
         ))}
       </div>
+
+      {/* 削除確認ダイアログ */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <h2 className="text-xl font-bold mb-4">確認</h2>
+            <p className="mb-6">本当に削除しますか？</p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 focus:outline-none"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                削除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
