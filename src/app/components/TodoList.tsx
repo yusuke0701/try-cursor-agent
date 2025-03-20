@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Todo } from '../types/todo';
+import CelebrationDialog from './CelebrationDialog';
+import DeleteConfirmDialog from './DeleteConfirmDialog';
 
 const STORAGE_KEY = 'todos';
 const NOTIFICATION_PERMISSION_KEY = 'notificationPermission';
@@ -191,19 +193,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     <div className="w-full max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">TODO一覧</h1>
       
-      {/* お祝いメッセージ */}
-      {showCelebration && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full mx-4 text-center animate-bounce">
-            <div className="text-6xl mb-4 animate-spin">🎉</div>
-            <h2 className="text-2xl font-bold text-blue-600 mb-2">おめでとうございます！</h2>
-            <p className="text-gray-700">全てのTODOを完了しました！</p>
-            <div className="mt-4 text-sm text-gray-500">
-              素晴らしい仕事をしました！
-            </div>
-          </div>
-        </div>
-      )}
+      <CelebrationDialog isOpen={showCelebration} />
 
       <form onSubmit={handleAddTodo} className="mb-8">
         <div className="flex flex-col gap-3">
@@ -308,29 +298,11 @@ export default function TodoList({ initialTodos }: TodoListProps) {
         ))}
       </div>
 
-      {/* 削除確認ダイアログ */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">確認</h2>
-            <p className="mb-6 text-gray-700">本当に削除しますか？</p>
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={handleDeleteCancel}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 focus:outline-none font-medium"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium"
-              >
-                削除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 } 
