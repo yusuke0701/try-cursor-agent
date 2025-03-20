@@ -165,19 +165,23 @@ export default function TodoList({ theme }: TodoListProps) {
     return dueDate < now;
   };
 
-  const completedCount = todos.filter((todo) => todo.completedAt).length;
-  const totalCount = todos.length;
+  // 完了済みTODOの表示/非表示を切り替え
+  const toggleShowCompleted = () => {
+    setShowCompleted(!showCompleted);
+  };
 
-  const sortedTodos = todos
-    .filter((todo) => showCompleted || !todo.completedAt)
-    .sort((a, b) => {
-      if (a.completedAt && b.completedAt) {
-        return b.completedAt.getTime() - a.completedAt.getTime();
-      }
-      if (a.completedAt) return 1;
-      if (b.completedAt) return -1;
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
+  // 完了済みTODOの数を計算
+  const completedCount = todos.filter((todo) => todo.completedAt).length;
+
+  // フィルター適用済みのTODOリストを作成
+  const filteredTodos = showCompleted
+    ? todos
+    : todos.filter((todo) => !todo.completedAt);
+
+  // 作成日時でソート
+  const sortedTodos = [...filteredTodos].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+  );
 
   // 通知の許可を要求するボタンを表示
   const renderNotificationButton = () => {
@@ -214,10 +218,10 @@ export default function TodoList({ theme }: TodoListProps) {
 
       <div className="flex items-center justify-between mb-4">
         <div className={`text-sm ${themePresets[theme].filterText}`}>
-          完了済み: {completedCount}/{totalCount}
+          完了済み: {completedCount}/{todos.length}
         </div>
         <button
-          onClick={() => setShowCompleted(!showCompleted)}
+          onClick={toggleShowCompleted}
           className={`px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-lg transition-colors duration-200 ${themePresets[theme].filterButton}`}
         >
           {showCompleted ? '完了済みを非表示' : '完了済みを表示'}
@@ -230,7 +234,7 @@ export default function TodoList({ theme }: TodoListProps) {
             key={todo.id}
             todo={todo}
             onToggle={handleToggleTodo}
-            onDelete={handleDeleteClick}
+            onDelete={() => handleDeleteClick(todo.id)}
             formatDate={formatDate}
             isOverdue={isOverdue}
             theme={theme}
