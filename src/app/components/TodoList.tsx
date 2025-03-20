@@ -169,10 +169,26 @@ export default function TodoList({ theme }: TodoListProps) {
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
 
+  // 通知の許可を要求するボタンを表示
+  const renderNotificationButton = () => {
+    if (!('Notification' in window)) return null;
+    if (notificationPermission === 'granted') return null;
+
+    return (
+      <button
+        onClick={requestNotificationPermission}
+        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${themePresets[theme].submitButton}`}
+      >
+        通知を許可する
+      </button>
+    );
+  };
+
   return (
     <div className={`w-full max-w-2xl mx-auto ${themePresets[theme].page}`}>
       <div className="flex justify-between items-center mb-6">
         <h1 className={`text-2xl font-bold ${themePresets[theme].heading}`}>TODO一覧</h1>
+        {renderNotificationButton()}
       </div>
       
       <CelebrationDialog isOpen={showCelebration} />
