@@ -23,6 +23,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [newTodoDueDate, setNewTodoDueDate] = useState<string>('');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // 通知の許可を確認
   useEffect(() => {
@@ -105,6 +106,18 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     }
   }, [todos]);
 
+  // 全てのTODOが完了したかチェック
+  useEffect(() => {
+    if (todos.length > 0 && todos.every(todo => todo.completedAt)) {
+      setShowCelebration(true);
+      // 3秒後にメッセージを非表示
+      const timer = setTimeout(() => {
+        setShowCelebration(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [todos]);
+
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTodoTitle.trim()) return;
@@ -178,6 +191,20 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     <div className="w-full max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">TODO一覧</h1>
       
+      {/* お祝いメッセージ */}
+      {showCelebration && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full mx-4 text-center animate-bounce">
+            <div className="text-6xl mb-4 animate-spin">🎉</div>
+            <h2 className="text-2xl font-bold text-blue-600 mb-2">おめでとうございます！</h2>
+            <p className="text-gray-700">全てのTODOを完了しました！</p>
+            <div className="mt-4 text-sm text-gray-500">
+              素晴らしい仕事をしました！
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleAddTodo} className="mb-8">
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
