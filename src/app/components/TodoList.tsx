@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { Todo } from '../types/todo';
+import { Theme, themePresets } from '../types/theme';
 import CelebrationDialog from './CelebrationDialog';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import TodoItem from './TodoItem';
 import TodoForm from './TodoForm';
 
-const STORAGE_KEY = 'todos';
-const NOTIFICATION_PERMISSION_KEY = 'notificationPermission';
-
-type TodoListProps = {
-  initialTodos: Todo[];
-};
+interface TodoListProps {
+  theme: Theme;
+}
 
 type StoredTodo = Omit<Todo, 'createdAt' | 'completedAt' | 'dueDate'> & {
   createdAt: string;
@@ -20,106 +18,81 @@ type StoredTodo = Omit<Todo, 'createdAt' | 'completedAt' | 'dueDate'> & {
   dueDate?: string;
 };
 
-export default function TodoList({ initialTodos }: TodoListProps) {
-  const [todos, setTodos] = useState<Todo[]>(initialTodos);
+export default function TodoList({ theme }: TodoListProps) {
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [newTodoDueDate, setNewTodoDueDate] = useState<string>('');
+  const [newTodoDueDate, setNewTodoDueDate] = useState('');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [showCelebration, setShowCelebration] = useState(false);
 
   // 通知の許可を確認
   useEffect(() => {
-    const checkNotificationPermission = async () => {
-      if (!('Notification' in window)) {
-        console.log('このブラウザは通知をサポートしていません');
-        return;
-      }
-
-      const permission = localStorage.getItem(NOTIFICATION_PERMISSION_KEY);
-      if (permission) {
-        setNotificationPermission(permission as NotificationPermission);
-        return;
-      }
-
-      const result = await Notification.requestPermission();
-      setNotificationPermission(result);
-      localStorage.setItem(NOTIFICATION_PERMISSION_KEY, result);
-    };
-
-    checkNotificationPermission();
-  }, []);
-
-  // 期限切れのTODOをチェック
-  useEffect(() => {
-    if (notificationPermission !== 'granted') return;
-
-    const checkDueDates = () => {
-      const now = new Date();
-      todos.forEach(todo => {
-        if (!todo.completedAt && todo.dueDate) {
-          const dueDate = new Date(todo.dueDate);
-          if (dueDate < now) {
-            // 期限切れの通知を送信
-            new Notification('TODO期限切れ', {
-              body: `「${todo.title}」の期限が切れています`,
-              icon: '/favicon.ico'
-            });
-          }
-        }
-      });
-    };
-
-    // 1分ごとにチェック
-    const interval = setInterval(checkDueDates, 60000);
-    checkDueDates(); // 初回チェック
-
-    return () => clearInterval(interval);
-  }, [todos, notificationPermission]);
-
-  // 初期データの読み込み
-  useEffect(() => {
-    const savedTodos = localStorage.getItem(STORAGE_KEY);
-    if (savedTodos) {
-      try {
-        const parsedTodos = JSON.parse(savedTodos) as StoredTodo[];
-        // Date型に変換し、無効な日付をフィルタリング
-        const todosWithDates = parsedTodos
-          .map((todo) => ({
-            ...todo,
-            createdAt: new Date(todo.createdAt),
-            completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined,
-            dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined
-          }))
-          .filter((todo) => !isNaN(todo.createdAt.getTime()));
-        setTodos(todosWithDates);
-      } catch (error) {
-        console.error('Failed to load todos:', error);
-        setTodos([]);
-      }
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
     }
   }, []);
 
-  // データの保存
+  // 通知の許可を要求
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    }
+  };
+
+  // 期限切れのTODOをチェックして通知
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-    } catch (error) {
-      console.error('Failed to save todos:', error);
+    if (notificationPermission === 'granted') {
+      const checkOverdueTodos = () => {
+        todos.forEach((todo) => {
+          if (todo.dueDate && !todo.completedAt && isOverdue(todo.dueDate)) {
+            new Notification('期限切れのTODOがあります', {
+              body: `「${todo.title}」の期限が切れています`,
+              icon: '/favicon.ico',
+            });
+          }
+        });
+      };
+
+      const interval = setInterval(checkOverdueTodos, 60000); // 1分ごとにチェック
+      return () => clearInterval(interval);
+    }
+  }, [todos, notificationPermission]);
+
+  // すべてのTODOが完了したかチェック
+  useEffect(() => {
+    if (todos.length > 0 && todos.every((todo) => todo.completedAt)) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 5000);
     }
   }, [todos]);
 
-  // 全てのTODOが完了したかチェック
+  // ローカルストレージからTODOを読み込む
   useEffect(() => {
-    if (todos.length > 0 && todos.every(todo => todo.completedAt)) {
-      setShowCelebration(true);
-      // 3秒後にメッセージを非表示
-      const timer = setTimeout(() => {
-        setShowCelebration(false);
-      }, 3000);
-      return () => clearTimeout(timer);
+    const savedTodos = localStorage.getItem('todos');
+    if (savedTodos) {
+      const parsedTodos: StoredTodo[] = JSON.parse(savedTodos);
+      const convertedTodos: Todo[] = parsedTodos.map((todo) => ({
+        ...todo,
+        createdAt: new Date(todo.createdAt),
+        completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined,
+        dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined,
+      }));
+      setTodos(convertedTodos);
     }
+  }, []);
+
+  // TODOをローカルストレージに保存
+  useEffect(() => {
+    const todosToSave = todos.map((todo) => ({
+      ...todo,
+      createdAt: todo.createdAt.toISOString(),
+      completedAt: todo.completedAt?.toISOString(),
+      dueDate: todo.dueDate?.toISOString(),
+    }));
+    localStorage.setItem('todos', JSON.stringify(todosToSave));
   }, [todos]);
 
   const handleAddTodo = (e: React.FormEvent) => {
@@ -130,21 +103,25 @@ export default function TodoList({ initialTodos }: TodoListProps) {
       id: Date.now().toString(),
       title: newTodoTitle.trim(),
       createdAt: new Date(),
-      dueDate: newTodoDueDate ? new Date(newTodoDueDate) : undefined
+      dueDate: newTodoDueDate ? new Date(newTodoDueDate) : undefined,
     };
 
-    setTodos([newTodo, ...todos]); // 新しいTODOを配列の先頭に追加
+    setTodos((prevTodos) => [...prevTodos, newTodo]);
     setNewTodoTitle('');
     setNewTodoDueDate('');
   };
 
   const handleToggleTodo = (id: string) => {
-    setTodos(todos.map(todo =>
-      todo.id === id ? {
-        ...todo,
-        completedAt: todo.completedAt ? undefined : new Date()
-      } : todo
-    ));
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === id
+          ? {
+              ...todo,
+              completedAt: todo.completedAt ? undefined : new Date(),
+            }
+          : todo
+      )
+    );
   };
 
   const handleDeleteClick = (id: string) => {
@@ -152,48 +129,51 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   };
 
   const handleDeleteConfirm = () => {
-    if (!deleteConfirmId) return;
-    setTodos(todos.filter(todo => todo.id !== deleteConfirmId));
-    setDeleteConfirmId(null);
+    if (deleteConfirmId) {
+      setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== deleteConfirmId));
+      setDeleteConfirmId(null);
+    }
   };
 
   const handleDeleteCancel = () => {
     setDeleteConfirmId(null);
   };
 
-  // 作成日時でソート（新しい順）
-  const sortedTodos = [...todos]
-    .filter(todo => showCompleted || !todo.completedAt)
-    .sort((a, b) => {
-      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-  // 日付をフォーマットする関数
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('ja-JP', {
+    return date.toLocaleString('ja-JP', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+      minute: '2-digit',
+    });
   };
 
-  // 期限切れかどうかを判定する関数
   const isOverdue = (dueDate?: Date) => {
     if (!dueDate) return false;
-    return new Date() > dueDate;
+    const now = new Date();
+    return dueDate < now;
   };
 
-  // 完了済みTODOの数をカウント
-  const completedCount = todos.filter(todo => todo.completedAt).length;
+  const completedCount = todos.filter((todo) => todo.completedAt).length;
   const totalCount = todos.length;
 
+  const sortedTodos = todos
+    .filter((todo) => showCompleted || !todo.completedAt)
+    .sort((a, b) => {
+      if (a.completedAt && b.completedAt) {
+        return b.completedAt.getTime() - a.completedAt.getTime();
+      }
+      if (a.completedAt) return 1;
+      if (b.completedAt) return -1;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">TODO一覧</h1>
+    <div className={`w-full max-w-2xl mx-auto ${themePresets[theme].page}`}>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className={`text-2xl font-bold ${themePresets[theme].heading}`}>TODO一覧</h1>
+      </div>
       
       <CelebrationDialog isOpen={showCelebration} />
 
@@ -203,17 +183,16 @@ export default function TodoList({ initialTodos }: TodoListProps) {
         onTitleChange={setNewTodoTitle}
         onDueDateChange={setNewTodoDueDate}
         onSubmit={handleAddTodo}
+        theme={theme}
       />
 
       <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-600">
+        <div className={`text-sm ${themePresets[theme].filterText}`}>
           完了済み: {completedCount}/{totalCount}
         </div>
         <button
           onClick={() => setShowCompleted(!showCompleted)}
-          className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg
-            transition-colors duration-200"
+          className={`px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-lg transition-colors duration-200 ${themePresets[theme].filterButton}`}
         >
           {showCompleted ? '完了済みを非表示' : '完了済みを表示'}
         </button>
@@ -228,6 +207,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
             onDelete={handleDeleteClick}
             formatDate={formatDate}
             isOverdue={isOverdue}
+            theme={theme}
           />
         ))}
       </div>
@@ -236,6 +216,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
         isOpen={!!deleteConfirmId}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+        theme={theme}
       />
     </div>
   );

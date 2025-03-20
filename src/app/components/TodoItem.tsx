@@ -1,35 +1,14 @@
 import { Todo } from '../types/todo';
+import { Theme, themePresets } from '../types/theme';
 
-type TodoItemStyles = {
-  container?: string;
-  checkbox?: string;
-  title?: string;
-  titleCompleted?: string;
-  dateContainer?: string;
-  dateText?: string;
-  dateOverdue?: string;
-  deleteButton?: string;
-};
-
-type TodoItemProps = {
+interface TodoItemProps {
   todo: Todo;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   formatDate: (date: Date) => string;
   isOverdue: (dueDate?: Date) => boolean;
-  styles?: TodoItemStyles;
-};
-
-const defaultStyles: TodoItemStyles = {
-  container: 'flex items-center p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200',
-  checkbox: 'w-5 h-5 mr-3 cursor-pointer accent-blue-500',
-  title: 'block text-base leading-relaxed text-gray-800',
-  titleCompleted: 'line-through text-gray-500',
-  dateContainer: 'text-sm text-gray-500 mt-1',
-  dateText: 'ml-2',
-  dateOverdue: 'text-red-500',
-  deleteButton: 'px-3 py-1 text-sm text-red-600 hover:text-red-800 focus:outline-none font-medium',
-};
+  theme: Theme;
+}
 
 export default function TodoItem({
   todo,
@@ -37,43 +16,31 @@ export default function TodoItem({
   onDelete,
   formatDate,
   isOverdue,
-  styles = {},
+  theme,
 }: TodoItemProps) {
-  // デフォルトのスタイルとカスタムスタイルをマージ
-  const mergedStyles = {
-    container: `${defaultStyles.container} ${styles.container || ''}`,
-    checkbox: `${defaultStyles.checkbox} ${styles.checkbox || ''}`,
-    title: `${defaultStyles.title} ${styles.title || ''}`,
-    titleCompleted: `${defaultStyles.titleCompleted} ${styles.titleCompleted || ''}`,
-    dateContainer: `${defaultStyles.dateContainer} ${styles.dateContainer || ''}`,
-    dateText: `${defaultStyles.dateText} ${styles.dateText || ''}`,
-    dateOverdue: `${defaultStyles.dateOverdue} ${styles.dateOverdue || ''}`,
-    deleteButton: `${defaultStyles.deleteButton} ${styles.deleteButton || ''}`,
-  };
-
   return (
-    <div
-      className={`${mergedStyles.container} ${
-        !todo.completedAt && todo.dueDate && isOverdue(todo.dueDate) ? 'border-2 border-red-500' : ''
-      }`}
-    >
+    <div className={`flex items-center gap-3 p-4 rounded-lg border ${themePresets[theme].container}`}>
       <input
         type="checkbox"
         checked={!!todo.completedAt}
         onChange={() => onToggle(todo.id)}
-        className={mergedStyles.checkbox}
+        className={`w-5 h-5 rounded border-2 ${themePresets[theme].checkbox}`}
       />
       <div className="flex-1">
-        <span className={`${mergedStyles.title} ${todo.completedAt ? mergedStyles.titleCompleted : ''}`}>
+        <h3 className={`text-lg ${todo.completedAt ? themePresets[theme].completedTitle : themePresets[theme].title}`}>
           {todo.title}
-        </span>
-        <div className={mergedStyles.dateContainer}>
-          <span>作成: {formatDate(todo.createdAt)}</span>
+        </h3>
+        <div className={`flex gap-4 mt-1 text-sm ${themePresets[theme].dateContainer}`}>
+          <span className={themePresets[theme].dateText}>
+            作成: {formatDate(todo.createdAt)}
+          </span>
           {todo.completedAt && (
-            <span className={mergedStyles.dateText}>完了: {formatDate(todo.completedAt)}</span>
+            <span className={themePresets[theme].dateText}>
+              完了: {formatDate(todo.completedAt)}
+            </span>
           )}
-          {todo.dueDate && (
-            <span className={`${mergedStyles.dateText} ${!todo.completedAt && isOverdue(todo.dueDate) ? mergedStyles.dateOverdue : ''}`}>
+          {todo.dueDate && !todo.completedAt && (
+            <span className={isOverdue(todo.dueDate) ? themePresets[theme].overdueDate : themePresets[theme].dateText}>
               期限: {formatDate(todo.dueDate)}
             </span>
           )}
@@ -81,9 +48,11 @@ export default function TodoItem({
       </div>
       <button
         onClick={() => onDelete(todo.id)}
-        className={mergedStyles.deleteButton}
+        className={`p-2 rounded-full hover:bg-opacity-10 transition-colors duration-200 ${themePresets[theme].deleteButton}`}
       >
-        削除
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </button>
     </div>
   );
