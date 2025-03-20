@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react';
 import { Todo } from '../types/todo';
 
 const STORAGE_KEY = 'todos';
+const NOTIFICATION_PERMISSION_KEY = 'notificationPermission';
 
 type TodoListProps = {
   initialTodos: Todo[];
 };
 
-type StoredTodo = Omit<Todo, 'createdAt' | 'completedAt'> & {
+type StoredTodo = Omit<Todo, 'createdAt' | 'completedAt' | 'dueDate'> & {
   createdAt: string;
   completedAt?: string;
+  dueDate?: string;
 };
 
 export default function TodoList({ initialTodos }: TodoListProps) {
@@ -19,6 +21,57 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [newTodoDueDate, setNewTodoDueDate] = useState<string>('');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  // 通知の許可を確認
+  useEffect(() => {
+    const checkNotificationPermission = async () => {
+      if (!('Notification' in window)) {
+        console.log('このブラウザは通知をサポートしていません');
+        return;
+      }
+
+      const permission = localStorage.getItem(NOTIFICATION_PERMISSION_KEY);
+      if (permission) {
+        setNotificationPermission(permission as NotificationPermission);
+        return;
+      }
+
+      const result = await Notification.requestPermission();
+      setNotificationPermission(result);
+      localStorage.setItem(NOTIFICATION_PERMISSION_KEY, result);
+    };
+
+    checkNotificationPermission();
+  }, []);
+
+  // 期限切れのTODOをチェック
+  useEffect(() => {
+    if (notificationPermission !== 'granted') return;
+
+    const checkDueDates = () => {
+      const now = new Date();
+      todos.forEach(todo => {
+        if (!todo.completedAt && todo.dueDate) {
+          const dueDate = new Date(todo.dueDate);
+          if (dueDate < now) {
+            // 期限切れの通知を送信
+            new Notification('TODO期限切れ', {
+              body: `「${todo.title}」の期限が切れています`,
+              icon: '/favicon.ico'
+            });
+          }
+        }
+      });
+    };
+
+    // 1分ごとにチェック
+    const interval = setInterval(checkDueDates, 60000);
+    checkDueDates(); // 初回チェック
+
+    return () => clearInterval(interval);
+  }, [todos, notificationPermission]);
 
   // 初期データの読み込み
   useEffect(() => {
@@ -31,7 +84,8 @@ export default function TodoList({ initialTodos }: TodoListProps) {
           .map((todo) => ({
             ...todo,
             createdAt: new Date(todo.createdAt),
-            completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined
+            completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined,
+            dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined
           }))
           .filter((todo) => !isNaN(todo.createdAt.getTime()));
         setTodos(todosWithDates);
@@ -59,10 +113,12 @@ export default function TodoList({ initialTodos }: TodoListProps) {
       id: Date.now().toString(),
       title: newTodoTitle.trim(),
       createdAt: new Date(),
+      dueDate: newTodoDueDate ? new Date(newTodoDueDate) : undefined
     };
 
     setTodos([newTodo, ...todos]); // 新しいTODOを配列の先頭に追加
     setNewTodoTitle('');
+    setNewTodoDueDate('');
   };
 
   const handleToggleTodo = (id: string) => {
@@ -108,6 +164,12 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     }).format(date);
   };
 
+  // 期限切れかどうかを判定する関数
+  const isOverdue = (dueDate?: Date) => {
+    if (!dueDate) return false;
+    return new Date() > dueDate;
+  };
+
   // 完了済みTODOの数をカウント
   const completedCount = todos.filter(todo => todo.completedAt).length;
   const totalCount = todos.length;
@@ -117,35 +179,52 @@ export default function TodoList({ initialTodos }: TodoListProps) {
       <h1 className="text-2xl font-bold mb-6 text-gray-800">TODO一覧</h1>
       
       <form onSubmit={handleAddTodo} className="mb-8">
-        <div className="flex gap-3">
-          <div className="flex-1 relative">
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={newTodoTitle}
+                onChange={(e) => setNewTodoTitle(e.target.value)}
+                placeholder="新しいTODOを入力"
+                className="w-full px-5 py-3 text-base border-2 border-gray-200 rounded-lg 
+                  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200
+                  placeholder:text-gray-400 placeholder:text-base
+                  text-gray-900 bg-white
+                  transition-colors duration-200"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
+                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                font-medium text-base transition-colors duration-200
+                disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!newTodoTitle.trim()}
+            >
+              追加
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="dueDate" className="text-sm text-gray-600">
+              期限:
+            </label>
             <input
-              type="text"
-              value={newTodoTitle}
-              onChange={(e) => setNewTodoTitle(e.target.value)}
-              placeholder="新しいTODOを入力"
-              className="w-full px-5 py-3 text-base border-2 border-gray-200 rounded-lg 
+              type="datetime-local"
+              id="dueDate"
+              value={newTodoDueDate}
+              onChange={(e) => setNewTodoDueDate(e.target.value)}
+              className="px-3 py-2 text-base border-2 border-gray-200 rounded-lg 
                 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200
-                placeholder:text-gray-400 placeholder:text-base
                 text-gray-900 bg-white
                 transition-colors duration-200"
             />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
           </div>
-          <button
-            type="submit"
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-              font-medium text-base transition-colors duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!newTodoTitle.trim()}
-          >
-            追加
-          </button>
         </div>
       </form>
 
@@ -167,7 +246,8 @@ export default function TodoList({ initialTodos }: TodoListProps) {
         {sortedTodos.map((todo) => (
           <div
             key={todo.id}
-            className="flex items-center p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200"
+            className={`flex items-center p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200
+              ${!todo.completedAt && todo.dueDate && isOverdue(todo.dueDate) ? 'border-2 border-red-500' : ''}`}
           >
             <input
               type="checkbox"
@@ -183,6 +263,11 @@ export default function TodoList({ initialTodos }: TodoListProps) {
                 <span>作成: {formatDate(todo.createdAt)}</span>
                 {todo.completedAt && (
                   <span className="ml-2">完了: {formatDate(todo.completedAt)}</span>
+                )}
+                {todo.dueDate && (
+                  <span className={`ml-2 ${!todo.completedAt && isOverdue(todo.dueDate) ? 'text-red-500' : ''}`}>
+                    期限: {formatDate(todo.dueDate)}
+                  </span>
                 )}
               </div>
             </div>
