@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Todo } from '../types/todo';
+
+const STORAGE_KEY = 'todos';
 
 type TodoListProps = {
   initialTodos: Todo[];
@@ -11,6 +13,19 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // 初期データの読み込み
+  useEffect(() => {
+    const savedTodos = localStorage.getItem(STORAGE_KEY);
+    if (savedTodos) {
+      setTodos(JSON.parse(savedTodos));
+    }
+  }, []);
+
+  // データの保存
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  }, [todos]);
 
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
