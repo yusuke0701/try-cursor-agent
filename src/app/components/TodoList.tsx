@@ -24,7 +24,8 @@ export default function TodoList({ initialTodos }: TodoListProps) {
         const todosWithDates = parsedTodos
           .map((todo: any) => ({
             ...todo,
-            createdAt: new Date(todo.createdAt)
+            createdAt: new Date(todo.createdAt),
+            completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined
           }))
           .filter((todo: Todo) => !isNaN(todo.createdAt.getTime()));
         setTodos(todosWithDates);
@@ -51,7 +52,6 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     const newTodo: Todo = {
       id: Date.now().toString(),
       title: newTodoTitle.trim(),
-      completed: false,
       createdAt: new Date(),
     };
 
@@ -61,7 +61,10 @@ export default function TodoList({ initialTodos }: TodoListProps) {
 
   const handleToggleTodo = (id: string) => {
     setTodos(todos.map(todo =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      todo.id === id ? {
+        ...todo,
+        completedAt: todo.completedAt ? undefined : new Date()
+      } : todo
     ));
   };
 
@@ -85,6 +88,17 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
     return dateB.getTime() - dateA.getTime();
   });
+
+  // 日付をフォーマットする関数
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -131,13 +145,21 @@ export default function TodoList({ initialTodos }: TodoListProps) {
           >
             <input
               type="checkbox"
-              checked={todo.completed}
+              checked={!!todo.completedAt}
               onChange={() => handleToggleTodo(todo.id)}
               className="w-5 h-5 mr-3 cursor-pointer accent-blue-500"
             />
-            <span className={`flex-1 text-base leading-relaxed ${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
-              {todo.title}
-            </span>
+            <div className="flex-1">
+              <span className={`block text-base leading-relaxed ${todo.completedAt ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                {todo.title}
+              </span>
+              <div className="text-sm text-gray-500 mt-1">
+                <span>作成: {formatDate(todo.createdAt)}</span>
+                {todo.completedAt && (
+                  <span className="ml-2">完了: {formatDate(todo.completedAt)}</span>
+                )}
+              </div>
+            </div>
             <button
               onClick={() => handleDeleteClick(todo.id)}
               className="px-3 py-1 text-sm text-red-600 hover:text-red-800 focus:outline-none font-medium"
