@@ -26,17 +26,23 @@ export default function TodoList({ theme }: TodoListProps) {
   const [newTodoDueDate, setNewTodoDueDate] = useState('');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // クライアントサイドでのみ実行
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // 通知の許可を確認
   useEffect(() => {
-    if ('Notification' in window) {
+    if (isClient && 'Notification' in window) {
       setNotificationPermission(Notification.permission);
     }
-  }, []);
+  }, [isClient]);
 
   // 通知の許可を要求
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
+    if (isClient && 'Notification' in window) {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
     }
@@ -44,7 +50,7 @@ export default function TodoList({ theme }: TodoListProps) {
 
   // 期限切れのTODOをチェックして通知
   useEffect(() => {
-    if (notificationPermission === 'granted') {
+    if (isClient && notificationPermission === 'granted') {
       const checkOverdueTodos = () => {
         todos.forEach((todo) => {
           if (todo.dueDate && !todo.completedAt && isOverdue(todo.dueDate)) {
@@ -59,7 +65,7 @@ export default function TodoList({ theme }: TodoListProps) {
       const interval = setInterval(checkOverdueTodos, 60000); // 1分ごとにチェック
       return () => clearInterval(interval);
     }
-  }, [todos, notificationPermission]);
+  }, [todos, notificationPermission, isClient]);
 
   // すべてのTODOが完了したかチェック
   useEffect(() => {
@@ -71,29 +77,33 @@ export default function TodoList({ theme }: TodoListProps) {
 
   // ローカルストレージからTODOを読み込む
   useEffect(() => {
-    const savedTodos = localStorage.getItem('todos');
-    if (savedTodos) {
-      const parsedTodos: StoredTodo[] = JSON.parse(savedTodos);
-      const convertedTodos: Todo[] = parsedTodos.map((todo) => ({
-        ...todo,
-        createdAt: new Date(todo.createdAt),
-        completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined,
-        dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined,
-      }));
-      setTodos(convertedTodos);
+    if (isClient) {
+      const savedTodos = localStorage.getItem('todos');
+      if (savedTodos) {
+        const parsedTodos: StoredTodo[] = JSON.parse(savedTodos);
+        const convertedTodos: Todo[] = parsedTodos.map((todo) => ({
+          ...todo,
+          createdAt: new Date(todo.createdAt),
+          completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined,
+          dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined,
+        }));
+        setTodos(convertedTodos);
+      }
     }
-  }, []);
+  }, [isClient]);
 
   // TODOをローカルストレージに保存
   useEffect(() => {
-    const todosToSave = todos.map((todo) => ({
-      ...todo,
-      createdAt: todo.createdAt.toISOString(),
-      completedAt: todo.completedAt?.toISOString(),
-      dueDate: todo.dueDate?.toISOString(),
-    }));
-    localStorage.setItem('todos', JSON.stringify(todosToSave));
-  }, [todos]);
+    if (isClient) {
+      const todosToSave = todos.map((todo) => ({
+        ...todo,
+        createdAt: todo.createdAt.toISOString(),
+        completedAt: todo.completedAt?.toISOString(),
+        dueDate: todo.dueDate?.toISOString(),
+      }));
+      localStorage.setItem('todos', JSON.stringify(todosToSave));
+    }
+  }, [todos, isClient]);
 
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +181,7 @@ export default function TodoList({ theme }: TodoListProps) {
 
   // 通知の許可を要求するボタンを表示
   const renderNotificationButton = () => {
-    if (!('Notification' in window)) return null;
+    if (!isClient || !('Notification' in window)) return null;
     if (notificationPermission === 'granted') return null;
 
     return (
