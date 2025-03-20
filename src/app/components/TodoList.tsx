@@ -18,13 +18,30 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   useEffect(() => {
     const savedTodos = localStorage.getItem(STORAGE_KEY);
     if (savedTodos) {
-      setTodos(JSON.parse(savedTodos));
+      try {
+        const parsedTodos = JSON.parse(savedTodos);
+        // Date型に変換し、無効な日付をフィルタリング
+        const todosWithDates = parsedTodos
+          .map((todo: any) => ({
+            ...todo,
+            createdAt: new Date(todo.createdAt)
+          }))
+          .filter((todo: Todo) => !isNaN(todo.createdAt.getTime()));
+        setTodos(todosWithDates);
+      } catch (error) {
+        console.error('Failed to load todos:', error);
+        setTodos([]);
+      }
     }
   }, []);
 
   // データの保存
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    } catch (error) {
+      console.error('Failed to save todos:', error);
+    }
   }, [todos]);
 
   const handleAddTodo = (e: React.FormEvent) => {
@@ -38,7 +55,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
       createdAt: new Date(),
     };
 
-    setTodos([...todos, newTodo]);
+    setTodos([newTodo, ...todos]); // 新しいTODOを配列の先頭に追加
     setNewTodoTitle('');
   };
 
@@ -61,6 +78,13 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   const handleDeleteCancel = () => {
     setDeleteConfirmId(null);
   };
+
+  // 作成日時でソート（新しい順）
+  const sortedTodos = [...todos].sort((a, b) => {
+    const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+    const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+    return dateB.getTime() - dateA.getTime();
+  });
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -85,7 +109,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
       </form>
 
       <div className="space-y-4">
-        {todos.map((todo) => (
+        {sortedTodos.map((todo) => (
           <div
             key={todo.id}
             className="flex items-center p-4 bg-white rounded-lg shadow"
