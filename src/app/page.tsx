@@ -1,4 +1,3 @@
-import Image from "next/image";
 import TodoList from './components/TodoList';
 import { Todo } from './types/todo';
 
@@ -7,19 +6,17 @@ const mockTodos: Todo[] = [
   {
     id: '1',
     title: 'Next.jsの学習',
-    completed: false,
     createdAt: new Date(),
   },
   {
     id: '2',
     title: 'TypeScriptの学習',
-    completed: true,
     createdAt: new Date(),
+    completedAt: new Date(),
   },
   {
     id: '3',
     title: 'Tailwind CSSの学習',
-    completed: false,
     createdAt: new Date(),
   },
 ];

@@ -9,6 +9,11 @@ type TodoListProps = {
   initialTodos: Todo[];
 };
 
+type StoredTodo = Omit<Todo, 'createdAt' | 'completedAt'> & {
+  createdAt: string;
+  completedAt?: string;
+};
+
 export default function TodoList({ initialTodos }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [newTodoTitle, setNewTodoTitle] = useState('');
@@ -19,15 +24,15 @@ export default function TodoList({ initialTodos }: TodoListProps) {
     const savedTodos = localStorage.getItem(STORAGE_KEY);
     if (savedTodos) {
       try {
-        const parsedTodos = JSON.parse(savedTodos);
+        const parsedTodos = JSON.parse(savedTodos) as StoredTodo[];
         // Date型に変換し、無効な日付をフィルタリング
         const todosWithDates = parsedTodos
-          .map((todo: any) => ({
+          .map((todo) => ({
             ...todo,
             createdAt: new Date(todo.createdAt),
             completedAt: todo.completedAt ? new Date(todo.completedAt) : undefined
           }))
-          .filter((todo: Todo) => !isNaN(todo.createdAt.getTime()));
+          .filter((todo) => !isNaN(todo.createdAt.getTime()));
         setTodos(todosWithDates);
       } catch (error) {
         console.error('Failed to load todos:', error);
