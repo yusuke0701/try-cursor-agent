@@ -18,6 +18,7 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // 初期データの読み込み
   useEffect(() => {
@@ -88,11 +89,13 @@ export default function TodoList({ initialTodos }: TodoListProps) {
   };
 
   // 作成日時でソート（新しい順）
-  const sortedTodos = [...todos].sort((a, b) => {
-    const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-    const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-    return dateB.getTime() - dateA.getTime();
-  });
+  const sortedTodos = [...todos]
+    .filter(todo => showCompleted || !todo.completedAt)
+    .sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
 
   // 日付をフォーマットする関数
   const formatDate = (date: Date) => {
@@ -104,6 +107,10 @@ export default function TodoList({ initialTodos }: TodoListProps) {
       minute: '2-digit'
     }).format(date);
   };
+
+  // 完了済みTODOの数をカウント
+  const completedCount = todos.filter(todo => todo.completedAt).length;
+  const totalCount = todos.length;
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -141,6 +148,20 @@ export default function TodoList({ initialTodos }: TodoListProps) {
           </button>
         </div>
       </form>
+
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm text-gray-600">
+          完了済み: {completedCount}/{totalCount}
+        </div>
+        <button
+          onClick={() => setShowCompleted(!showCompleted)}
+          className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg
+            transition-colors duration-200"
+        >
+          {showCompleted ? '完了済みを非表示' : '完了済みを表示'}
+        </button>
+      </div>
 
       <div className="space-y-3">
         {sortedTodos.map((todo) => (
